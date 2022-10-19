@@ -4,7 +4,7 @@ const app = express();
 const cors = require("cors");
 const path = require("path");
 const urlencode = require("urlencode");
-const dateOfOffset = require(path.resolve(__dirname, "./dateOfOffset"));
+const datesOfOffset = require(path.resolve(__dirname, "./dateOfOffset"));
 app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
@@ -46,21 +46,27 @@ function validateReq(req, res, next) {
 }
 
 app.get("/", validateReq, (req, res) => {
+  res.header("Content-Type", "application/json; charset=utf-8");
   let sql = mysql.format(
     `SELECT * FROM offset_simpl WHERE reg = ? AND soc1 = ?`,
-    [req.query.reg, req.query.soc]
+    [req.query.reg, req.query.soc],
   );
   console.log(sql);
   executeQuery(sql)
     .then((results) => {
       results = results
         .filter((result) => {
-          return urlencode.decode(result.date) == dateOfOffset;
+          return datesOfOffset.includes(urlencode.decode(result.date));
         })
         .map((result) => {
-          return urlencode.decode(result.options);
+          let date = urlencode.decode(result.date);
+          let splittedDate = date.split(" ")?.[0] || "";
+          let reversedDate = splittedDate.split(".")?.reverse()?.join("-");
+          return {
+            options: urlencode.decode(result.options),
+            date: new Date(reversedDate + "T00:00:00.000Z"),
+          };
         });
-
       res.end(JSON.stringify(results));
     })
     .catch((err) => {
@@ -83,5 +89,5 @@ function executeQuery(query) {
   });
 }
 
-const PORT = 3033;
+const PORT = 3099;
 app.listen(PORT, console.log(`СЕРВЕР РАБОТАЕТ НА ПОРТУ : ${PORT}`));
